@@ -4,40 +4,34 @@ package org.wso2.carbon.dataservices.core.odata;
 
 //from mongoquery
 import com.datastax.driver.core.*;
-import com.mongodb.MongoClient;
-import com.mongodb.client.MongoDatabase;
-import org.apache.jasper.tagplugins.jstl.core.Set;
-import org.jongo.Jongo;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
+import org.jongo.*;
+import org.json.JSONObject;
 import org.wso2.carbon.dataservices.common.DBConstants;
-import org.wso2.carbon.dataservices.core.boxcarring.RequestBox;
+import org.wso2.carbon.dataservices.core.DBUtils;
+import org.wso2.carbon.dataservices.core.DataServiceFault;
 import org.wso2.carbon.dataservices.core.custom.datasource.DataRow;
+import org.wso2.carbon.dataservices.core.custom.datasource.QueryResult;
 import org.wso2.carbon.dataservices.core.engine.DataEntry;
 
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 import java.util.*;
 
 import org.jongo.Jongo;
-import org.jongo.MongoCollection;
-import org.jongo.ResultHandler;
-import org.jongo.Update;
 
 //import com.mongodb.client.MongoCollection;
 
 
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 //import jongo.rest.xstream.Row;
-
-import org.apache.commons.dbutils.ResultSetHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-
 
 
 public class MongoDataHandler implements ODataDataHandler{
@@ -85,6 +79,8 @@ public class MongoDataHandler implements ODataDataHandler{
 
 
     private Jongo jongo;
+    //private Iterator ;
+
 
     //private RequestBox session;
 
@@ -96,22 +92,116 @@ public class MongoDataHandler implements ODataDataHandler{
         this.configID = configID;
         this.jongo=jongo;
         this.tableList=generateTableList();
-        this.tableMetaData=generateMetaData();
-        this.primaryKeys=generatePrimaryKeyList();
+        this.tableMetaData=generateTableMetaData();
+        this.primaryKeys=getPrimaryKeys();
     }
 
 
-
-    public List<ODataEntry> readTable(String tableName) throws ODataServiceFault {
+    @Override
+    public List<ODataEntry> readTable(String tableName) throws ODataServiceFault {;
+        String tmpVal;
         List<ODataEntry> entryList = new ArrayList<>();
-        //getJongo().getDatabase().getCollection(tableName).
-        return  entryList;
+        DBCollection result = getJongo().getDatabase().getCollection(tableName);
+        Iterator<DBObject> cursor = result.find();
+        this.tableMetaData = new HashMap<>();
+        ODataEntry dataEntry = new ODataEntry();
+
+//        while (cursor.hasNext()) {
+//            final DBObject current = cursor.next();
+//            tmpVal = current.toString();
+//            //ODataEntry dataEntry = new ODataEntry();
+//            //dataEntry.addValue(DBConstants.MongoDB.RESULT_COLUMN_NAME, tmpVal);
+//            entryList.add(dataEntry);
+
+
+        // while (cursor.hasNext()) {
+        final DBObject current = cursor.next();
+        tmpVal = current.toString();
+        //ODataEntry dataEntry = new ODataEntry();
+        //dataEntry.addValue(DBConstants.MongoDB.RESULT_COLUMN_NAME, tmpVal);
+        //entryList.add(dataEntry);
+        Iterator<?> keys = new JSONObject(tmpVal).keys();
+        //int i = 1;
+        while (keys.hasNext()) {
+            String columnName = (String) keys.next();
+            String columnValue = new JSONObject(tmpVal).get(columnName).toString();
+            //String colName=new JSONObject(tmpVal).
+            dataEntry.addValue(columnName, columnValue);
+            // i++;
+        }
+        entryList.add(dataEntry);
+
+        //}
+        return entryList;
     }
 
-    /*
+
+//            Iterator<?> keys = new JSONObject(tmpVal).keys();
+//            int i = 1;
+//            while( keys.hasNext() ) {
+//                String columnName = (String) keys.next();
+//                DataColumn dataColumn = new DataColumn(columnName, DataColumn.ODataDataType.STRING, i, true, 100,
+//                        columnName.equals("_id") ? true : false);
+//                HashMap<String, DataColumn> column = new HashMap();
+//                column.put(columnName, dataColumn);
+//                tableMetaData.put(tableName, column);
+//                i++;
+//            }
+
+
+    //initializeMetaData(tableName, new JSONObject(tmpVal));   //
+    // }
+//        QueryResult queryResult = (QueryResult) result;
+//        try {
+//            while (queryResult.hasNext()) {
+//                currentRow = queryResult.next();
+//                tmpVal = currentRow.getValueAt(DBConstants.MongoDB.RESULT_COLUMN_NAME);
+//                ODataEntry dataEntry = new ODataEntry();
+//                dataEntry.addValue(DBConstants.MongoDB.RESULT_COLUMN_NAME, tmpVal);
+//                entryList.add(dataEntry);
+//            }
+//        } catch (DataServiceFault dataServiceFault) {
+//            ODataServiceFault fault = new ODataServiceFault("reason");
+//            fault.initCause(dataServiceFault);
+//            throw fault;
+//        }
+    // return entryList;
+
+    //}
+
+/*
+
+public List<ODataEntry> readTable(String tableName) throws ODataServiceFault {
+        //DBCursor cursor=getJongo().getDatabase().getCollection(tableName).find();
+        DataRow currentRow;
+        String tmpVal;
+        List<ODataEntry> entryList = new ArrayList<>();
+       // Iterator<DBObject> iterator =cursor.iterator();
+        Object result=getJongo().getDatabase().getCollection(tableName).find();
+        QueryResult queryResult = (QueryResult) result;
+        try {
+            while (queryResult.hasNext()) {
+                currentRow = queryResult.next();
+                tmpVal = currentRow.getValueAt(DBConstants.MongoDB.RESULT_COLUMN_NAME);
+                ODataEntry dataEntry = new ODataEntry();
+                dataEntry.addValue(DBConstants.MongoDB.RESULT_COLUMN_NAME, tmpVal);
+                entryList.add(dataEntry);
+            }
+        } catch (DataServiceFault dataServiceFault) {
+            ODataServiceFault fault = new ODataServiceFault("reason");
+            fault.initCause(dataServiceFault);
+            throw fault;
+        }
+        return entryList;
+
+    }
+
+
     public List<ODataEntry> readTable(String tableName) throws ODataServiceFault {
 
         Statement statement = new SimpleStatement("db." + tableName + ".find()");
+        Command command=getJongo().runCommand("db." + tableName + ".find()");
+
         ResultSet resultSet = this.session.execute(statement);
         Iterator<Row> iterator = resultSet.iterator();
         List<ODataEntry> entryList = new ArrayList<>();
@@ -222,18 +312,68 @@ public class MongoDataHandler implements ODataDataHandler{
      */
     @Override
     public Map<String, Map<String, DataColumn>> getTableMetadata() {
-        return this.getTableMetadata();
+//        List<String> tableNames=this.tableList;
+//        Map<String, Map<String, DataColumn>> meta = new HashMap<>();
+//        Map<String, DataColumn> dataColumnMap = new HashMap<>();
+//        //dataColumnMap.put("");
+//        //DataColumn a=new DataColumn();
+//        for(String tName :tableNames) {
+//            //meta.put(tName, dataColumnMap);
+//            generateTableMetaData(tName,)
+//        }
+//        //return tableMetaData;
+//        return meta;
+        return this.tableMetaData;
     }
 
-    private Map<String, Map<String, DataColumn>> generateMetaData() {
-        List<String> tableNames=this.tableList;
-        Map<String, Map<String, DataColumn>> meta = new HashMap<>();
-        Map<String, DataColumn> dataColumnMap = new HashMap<>();
-        for(String tName :tableNames) {
-            meta.put(tName, dataColumnMap);
+    private Map<String, Map<String, DataColumn>> generateTableMetaData() {
+        DataRow currentRow;
+        //Iterator<?> keys = document.keys();
+        int i = 1;
+        Map<String, Map<String, DataColumn>> metaData = new HashMap<>();
+        for (String tName : this.tableList) {
+            DBCollection result = getJongo().getDatabase().getCollection(tName);
+            Iterator<DBObject> cursor = result.find();
+            //while (cursor.hasNext()) {
+            final DBObject current = cursor.next();
+            String tmpVal = current.toString();
+            JSONObject document = new JSONObject(tmpVal);
+            Iterator<?> keys = document.keys();
+            //Iterable<?> value=
+            HashMap<String, DataColumn> column = new HashMap();
+            while (keys.hasNext()) {
+                String columnName = (String) keys.next();
+                DataColumn dataColumn = new DataColumn(columnName, DataColumn.ODataDataType.STRING, i, true, 100,
+                        columnName.equals("_id") ? true : false);
+                column.put(columnName, dataColumn);
+                i++;
+            }
+            metaData.put(tName, column);
         }
-        return meta;
+
+        // }
+        return metaData;
     }
+
+    /**
+     * This method initializes metadata.
+     *
+     * @throws ODataServiceFault
+     */
+//    private void initializeMetaData(String tableName, JSONObject document) throws ODataServiceFault {
+//        this.tableMetaData = new HashMap<>();
+//            Iterator<?> keys = document.keys();
+//            int i = 1;
+//            while( keys.hasNext() ) {
+//                String columnName = (String) keys.next();
+//                DataColumn dataColumn = new DataColumn(columnName, DataColumn.ODataDataType.STRING, i, true, 100,
+//                        columnName.equals("_id") ? true : false);
+//                HashMap<String, DataColumn> column = new HashMap();
+//                column.put(columnName, dataColumn);
+//                tableMetaData.put(tableName, column);
+//                i++;
+//            }
+//    }
 
 
     @Override
@@ -244,36 +384,49 @@ public class MongoDataHandler implements ODataDataHandler{
 
     /**
      * This method creates a list of tables available in the DB.
+     *
      * @return Table List of the DB
      * @throws ODataServiceFault
      */
-    private List<String> generateTableList() {
+    private List<String> generateTableList(){
         List<String> list = new ArrayList<String>();
         list.addAll(getJongo().getDatabase().getCollectionNames());
         return list;
 
     }
 
+
+
     @Override
     public Map<String, List<String>> getPrimaryKeys() {
-        return this.getPrimaryKeys();
-    }
-
-    private Map<String, List<String>> generatePrimaryKeyList() {
         Map<String, List<String>> primaryKeyList=new HashMap<>();
         List<String> tableNames=this.tableList;
         List<String> primaryKey = new ArrayList<>();
         // count =getJongo().getDatabase().getCollectionNames().size();
-        //for(int x=1; x<=1; x++){
-         //   primaryKey.add("_id");
-        //}
-        primaryKey.add("_id");
+        for(int x=1; x<=1; x++){
+            primaryKey.add("_id");
+        }
         for(String tname : tableNames){
             primaryKeyList.put(tname,primaryKey);
         }
 
         return primaryKeyList;
+
     }
+
+//    private Map<String, List<String>> generatePrimaryKeyList() {
+//        Map<String, List<String>> primaryKeyMap = new HashMap<>();
+//        for (String tableName : this.tableList) {
+//           List<String> primaryKey = new ArrayList<>();
+//           //DBCursor indexes = getJongo().getDatabase().getCollection(tableName).find().returnKey();
+//            for (DBObject columnMetadata : getJongo().getDatabase().getCollection(tableName).find().returnKey()) {
+//                primaryKey.add(columnMetadata.toString());
+//            }
+//            primaryKeyMap.put(tableName, primaryKey);
+//        }
+//       return primaryKeyMap;
+//    }
+
 
     @Override
     public Map<String, NavigationTable> getNavigationProperties() {
@@ -336,7 +489,7 @@ public class MongoDataHandler implements ODataDataHandler{
     /**
      * This method creates Mongo query to delete data.
      *
-     * @param tableName Name of the table
+     * @param tableName Name of the tableet
      * @return sql Query
      */
 
